@@ -97,8 +97,13 @@ int ksu_rkp_branch_patch(void *dst, void *src)
     if (site) {
         /* Restore: write back the displaced instruction. */
         displaced_insn = site->displaced_insn;
+        ret = aarch64_insn_patch_text(&current_fn, &displaced_insn, 1);
+        if (ret) {
+            mutex_unlock(&ksu_site_lock);
+            pr_err("ksu: branch site restore failed at %pS: %d\n", current_fn, ret);
+            return ret;
+        }
         *site = ksu_sites[--ksu_site_count];
-        aarch64_insn_patch_text(&current_fn, &displaced_insn, 1);
         pr_info("ksu: branch site removed at %pS\n", current_fn);
         if (new_fn == current_fn) {
             mutex_unlock(&ksu_site_lock);
@@ -127,6 +132,7 @@ int ksu_rkp_branch_patch(void *dst, void *src)
         set_memory_rox((unsigned long)ksu_stub_page, 1);
 #else
         set_memory_ro((unsigned long)ksu_stub_page, 1);
+        set_memory_x((unsigned long)ksu_stub_page, 1);
 #endif
     }
 
